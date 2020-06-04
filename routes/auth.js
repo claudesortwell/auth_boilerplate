@@ -1,47 +1,52 @@
 const router = require('express').Router();
 const User = require('../model/User');
+const { registerValidation } = require('../joi/validation');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
-// Validation
-const Joi = require('@hapi/joi'); 
-const joiPasswordComplex = require('joi-password-complexity');
-
-// joiPasswordComplex settings
-const complexityOptions = {
-    min: 8,
-    max: 128,
-    lowerCase: 1,
-    upperCase: 1,
-    numeric: 1,
-    symbol: 1,
-    requirementCount: 4,
-};
-
-const schema = Joi.object({
-    name: Joi.string().min(2).required(),
-    email: Joi.string().min(6).required().email(),
-    password:  joiPasswordComplex(complexityOptions),
-    passwordConfirm: Joi.ref('password')
-});
-
+// Register
 router.post('/register', async (req, res) => {
+    // Validating users register data
+    const { error } = registerValidation(req.body);
+    // If the submitted user details have a error return details of error and status 400
+    if(error) return res.status(400).send(error.details);
 
-    // Validating the data before creating user
-    const validation = schema.validate(req.body);
+    // Checking if email is already in the database
+    const emailExist = await User.findOne({email: req.body.email});
+    if(emailExist) return res.status(400).send('Email already exists')
+    
+    // Hashing the password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(req.body.password, salt);
 
-    res.send(validation);
+    // Create a new user
+    const user = new User({
+        name: req.body.name,
+        email: req.body.email,
+        password: hashedPassword
+    });
 
-    // const user = new User({
-    //     name: req.body.name,
-    //     email: req.body.email,
-    //     password: req.body.password
-    // });
+    // Save the new user
+    try {
+        await user.save();
+        res.send({user: user._id}); 
+    } catch(err) {
+        res.status(400).send(err);
+    }
+})
 
-    // try {
-    //     const savedUser = await user.save();
-    //     res.send(savedUser); 
-    // } catch(err) {
-    //     res.status(400).send(err);
-    // }
+// Login
+router.post('/login', async (req, res) => {
+    // Checking if email exists
+    const user = await User.findOne({email: req.body.email});
+    if(!user) return res.status(400).send('Email or Password is incorrect');
+    // Checking if password matches db password
+    const validPass = await bcrypt.compare(req.body.password, user.password);
+    if(!validPass) return res.status(400).send('Email or Password is incorrect');
+
+    // Create and assign a token
+    const token = jwt.sign({_id: user._id}, process.env.TOKEN_SECRET);
+    res.header('grillstudy-auth', token).send(token);
 })
 
 module.exports = router;

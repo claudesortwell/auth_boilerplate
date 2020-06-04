@@ -18,9 +18,11 @@
   "homepage": "https://github.com/claudesortwell/auth_boilerplate#readme",
   "dependencies": {
     "@hapi/joi": "^17.1.1",
+    "bcryptjs": "^2.4.3",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "joi-password-complexity": "^4.1.0",
+    "jsonwebtoken": "^8.5.1",
     "mongoose": "^5.9.2",
     "req-sanitizer": "^0.2.1"
   },
