@@ -23,6 +23,19 @@ app.use(express.json());
 var reqSanitizer = require('req-sanitizer');
 app.use(reqSanitizer());
 
+app.use(function(req, res, next) {
+    var allowedOrigins = ['http://localhost:8080'];
+    var origin = req.headers.origin;
+    if(allowedOrigins.indexOf(origin) > -1){
+         res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    //res.header('Access-Control-Allow-Origin', 'http://127.0.0.1:8020');
+    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Credentials', true);
+    return next();
+  });
+
 // Route Middlewares
 app.use('/api/user', authRoute);
 
