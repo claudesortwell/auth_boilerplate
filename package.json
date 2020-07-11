@@ -24,6 +24,7 @@
     "joi-password-complexity": "^4.1.0",
     "jsonwebtoken": "^8.5.1",
     "mongoose": "^5.9.2",
+    "nodemailer": "^6.4.10",
     "req-sanitizer": "^0.2.1"
   },
   "devDependencies": {
