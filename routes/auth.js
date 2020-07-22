@@ -5,6 +5,20 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const dotenv = require("dotenv");
 const nodemailer = require("nodemailer");
+const handlebars = require("handlebars");
+const fs = require("fs");
+
+// Reading HTML files
+var readHTMLFile = function (path, callback) {
+	fs.readFile(path, { encoding: "utf-8" }, function (err, html) {
+		if (err) {
+			throw err;
+			callback(err);
+		} else {
+			callback(null, html);
+		}
+	});
+};
 
 // Setting up Enviroment config file
 dotenv.config();
@@ -13,16 +27,11 @@ dotenv.config();
 var transporter = nodemailer.createTransport({
 	pool: true,
 	host: "ventraip.email",
-	port: 587,
+	port: 465,
 	sendMail: true,
-	secure: false, // true for 465, false for other ports
 	auth: {
-		user: "claude@grillstudy.com", // your domain email address
+		user: "info@grillstudy.com", // your domain email address
 		pass: process.env.EMAIL_PASSWORD, // your password
-	},
-	tls: {
-		// do not fail on invalid certs
-		rejectUnauthorized: false,
 	},
 });
 
@@ -33,21 +42,6 @@ transporter.verify(function (error, success) {
 	} else {
 		console.log("Server is ready to take our messages");
 	}
-});
-
-var mailOptions = {
-	from: '"GrillStudy" <claude@grillstudy.com>',
-	to: "yestinator@gmail.com",
-	subject: "GrillStudy Email Verification",
-	html: "Hello ",
-};
-
-// send mail with defined transport object
-transporter.sendMail(mailOptions, function (error, info) {
-	if (error) {
-		return console.log(error);
-	}
-	console.log("Message sent: " + info.response);
 });
 
 // Register
@@ -65,6 +59,10 @@ router.post("/register", async (req, res) => {
 	const salt = await bcrypt.genSalt(10);
 	const hashedPassword = await bcrypt.hash(req.body.password, salt);
 
+	// Creating Random String
+	var rand = await bcrypt.hash(req.body.email, salt);
+	var link = "https://" + req.get("host") + "/api/user/emailverify?hash=" + rand + "&email=" + req.body.email;
+
 	// Create a new user
 	const user = new User({
 		name: req.body.name,
@@ -72,33 +70,39 @@ router.post("/register", async (req, res) => {
 		password: hashedPassword,
 	});
 
-	var rand = Math.floor(Math.random() * 100 + 54);
-	var link = "https://" + req.get("host") + "/api/verify?id=" + rand;
-
-	var mailOptions = {
-		from: '"GrillStudy" <claude@grillstudy.com>',
-		to: req.body.email,
-		subject: "GrillStudy Email Verification",
-		html:
-			"Hello " +
-			req.body.name +
-			",<br> Please Click on the link to verify your email.<br><a href=" +
-			link +
-			">Click here to verify</a><br>From the GrillStudy Team<br>Helping university students become their best",
-	};
-
 	// Save the new user
 	try {
 		await user.save();
-		transporter.sendMail(mailOptions, function (error, response) {
-			if (error) {
-				console.log(error);
-				res.send("error");
-			} else {
-				console.log("Message sent: " + response.html);
-				res.send("sent");
-			}
+		readHTMLFile("./html/email.html", function (err, html) {
+			// Handler bar replacing html items with user content
+			var template = handlebars.compile(html);
+			var replacements = {
+				username: req.body.name,
+				link: link,
+			};
+			var htmlToSend = template(replacements);
+
+			// Email Options
+			var mailOptions = {
+				from: '"GrillStudy" <info@grillstudy.com>',
+				to: req.body.email,
+				subject: "GrillStudy Email Verification",
+				html: htmlToSend,
+			};
+
+			// Sending Email
+			transporter.sendMail(mailOptions, function (error) {
+				if (error) {
+					console.log(error);
+					res.send("error");
+				} else {
+					console.log("Message sent");
+					res.send("sent");
+				}
+			});
 		});
+
+		// Sending Back the user ID
 		res.send({ user: user._id });
 	} catch (err) {
 		res.status(400).send(err);
@@ -106,19 +110,21 @@ router.post("/register", async (req, res) => {
 });
 
 // Verify login
-router.post("/verify", function (req, res) {
-	console.log(req.protocol + ":/" + req.get("host"));
-	if (req.protocol + "://" + req.get("host") == "http://" + host) {
-		console.log("Domain is matched. Information is from Authentic email");
-		if (req.query.id == rand) {
-			console.log("email is verified");
-			res.end("<h1>Email " + mailOptions.to + " is been Successfully verified");
-		} else {
-			console.log("email is not verified");
-			res.end("<h1>Bad Request</h1>");
+router.post("/emailverify", async (req, res) => {
+	// Checking if hash and email exists
+	if (req.query.hash && req.query.email) {
+		const validHash = await bcrypt.compare(req.query.email, req.query.hash);
+		if (validHash) {
+			User.findOneAndUpdate({ email: req.query.email }, { $set: { emailCheck: true } }, function (err, doc) {
+				if (err) {
+					console.log("Error updating mongo for email verify");
+				}
+
+				res.sendStatus(200);
+			});
 		}
 	} else {
-		res.end("<h1>Request is from unknown source");
+		res.status(400).send("Invalid Link");
 	}
 });
 
