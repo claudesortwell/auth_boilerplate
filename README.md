@@ -1,6 +1,6 @@
-# auth_boilerplate
+# Backend API GrillStudy
 
-Web Authentication API in Node.js built for use within personal kubernetes designed apps
+Backend API for GrillStudy
 
 # Setup
 
