@@ -1,30 +1,35 @@
 // Validation
-const Joi = require('@hapi/joi'); 
-const joiPasswordComplex = require('joi-password-complexity');
-
+const Joi = require("@hapi/joi");
+const joiPasswordComplex = require("joi-password-complexity");
 
 // Register Validation
 const registerValidation = (data) => {
-    // joiPasswordComplex settings
-    const complexityOptions = {
-        min: 8,
-        max: 128,
-        lowerCase: 1,
-        upperCase: 1,
-        numeric: 1,
-        symbol: 1,
-        requirementCount: 4,
-    };
+	// joiPasswordComplex settings
+	const complexityOptions = {
+		min: 8,
+		max: 128,
+		lowerCase: 1,
+		upperCase: 1,
+		numeric: 1,
+		symbol: 1,
+		requirementCount: 4,
+	};
 
-    const schema = Joi.object({
-        name: Joi.string().min(2).required(),
-        email: Joi.string().min(6).required().email(),
-        password:  joiPasswordComplex(complexityOptions),
-        passwordConfirm: Joi.ref('password')
-    });
+	const schema = Joi.object({
+		firstname: Joi.string().min(2).required(),
+		lastname: Joi.string().min(2).required(),
+		email: Joi.string().min(6).required().email(),
+		password: joiPasswordComplex(complexityOptions),
+		passwordConfirm: Joi.ref("password"),
+		universityDetails: Joi.object({
+			uniName: Joi.string(),
+			studentID: Joi.string(),
+			ilearnPass: Joi.string(),
+		}),
+	});
 
-    // Creating an array of errors
-    return schema.validate(data);
+	// Creating an array of errors
+	return schema.validate(data);
 };
 
 module.exports.registerValidation = registerValidation;

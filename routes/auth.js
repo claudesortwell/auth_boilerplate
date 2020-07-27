@@ -6,9 +6,18 @@ const bcrypt = require("bcryptjs");
 const dotenv = require("dotenv");
 const nodemailer = require("nodemailer");
 const handlebars = require("handlebars");
+const crypto = require("crypto");
 const fs = require("fs");
 
-// Reading HTML files
+// Encryption Function
+function encryptString(text) {
+	let cipher = crypto.createCipheriv("aes-256-cbc", Buffer.from(process.env.PRIVATE_KEY), process.env.IV_ENCRYPT);
+	let encrypted = cipher.update(text);
+	encrypted = Buffer.concat([encrypted, cipher.final()]);
+	return encrypted.toString("hex");
+}
+
+// Reading HTML files function
 var readHTMLFile = function (path, callback) {
 	fs.readFile(path, { encoding: "utf-8" }, function (err, html) {
 		if (err) {
@@ -35,7 +44,7 @@ var transporter = nodemailer.createTransport({
 	},
 });
 
-// verify connection configuration
+// Verify Email SMTP Connection
 transporter.verify(function (error, success) {
 	if (error) {
 		console.log(error);
@@ -55,8 +64,12 @@ router.post("/register", async (req, res) => {
 	const emailExist = await User.findOne({ email: req.body.email });
 	if (emailExist) return res.status(400).send("Email already exists");
 
+	// Checking Passwords Match
 	const passwordMatch = req.body.password == req.body.passwordConfirm;
 	if (!passwordMatch) return res.status(400).send("Password does not match");
+
+	// Encrypting the iLearn Password
+	const encryptediLearnPass = encryptString(toString(req.body.universityDetails.ilearnPass));
 
 	// Hashing the password
 	const salt = await bcrypt.genSalt(10);
@@ -68,9 +81,11 @@ router.post("/register", async (req, res) => {
 
 	// Create a new user
 	const user = new User({
-		name: req.body.name,
+		firstname: req.body.firstname,
+		lastname: req.body.lastname,
 		email: req.body.email,
 		password: hashedPassword,
+		universityDetails: { uniName: req.body.universityDetails.uniName, studentID: req.body.universityDetails.studentID, ilearnPass: encryptediLearnPass },
 	});
 
 	// Save the new user
@@ -80,7 +95,7 @@ router.post("/register", async (req, res) => {
 			// Handler bar replacing html items with user content
 			var template = handlebars.compile(html);
 			var replacements = {
-				username: req.body.name,
+				username: req.body.firstname,
 				link: link,
 			};
 			var htmlToSend = template(replacements);
@@ -112,7 +127,7 @@ router.post("/register", async (req, res) => {
 	}
 });
 
-// Verify login
+// Verify Email
 router.post("/emailverify", async (req, res) => {
 	// Checking if hash and email exists
 	if (req.query.hash && req.query.email) {
@@ -141,23 +156,8 @@ router.post("/login", async (req, res) => {
 	if (!validPass) return res.status(400).send("Password is incorrect");
 
 	// Create and assign a token
-	const token = jwt.sign({ _id: user._id }, process.env.TOKEN_SECRET);
-	res.header("grillstudy-auth", token).send(token);
-});
-
-router.post("/verify", async (req, res) => {
-	// Checking if token exists
-	const token = req.header("grillstudy-auth");
-	if (!token) return res.status(401).send("Access Denied");
-
-	// Verify token is correct
-	try {
-		const verified = jwt.verify(token, process.env.TOKEN_SECRET);
-		req.user = verified;
-		next();
-	} catch (err) {
-		res.status(400).send("Invalid Token");
-	}
+	const token = jwt.sign({ name: user.firstname, _id: user._id }, process.env.TOKEN_SECRET);
+	res.header("auth-token", token).send(token);
 });
 
 module.exports = router;

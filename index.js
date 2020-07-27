@@ -5,6 +5,8 @@ const mongoose = require("mongoose");
 
 // Import Routes
 const authRoute = require("./routes/auth");
+const dashboardRoutes = require("./routes/dashboard");
+const verifyToken = require("./routes/verifyToken");
 
 // Setting up Enviroment config file
 dotenv.config();
@@ -36,5 +38,6 @@ app.use(function (req, res, next) {
 
 // Route Middlewares
 app.use("/api/user", authRoute);
+app.use("/api/dashboard", verifyToken, dashboardRoutes);
 
 app.listen(3000, () => console.log("Server Up and running"));
