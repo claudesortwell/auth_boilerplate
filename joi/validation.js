@@ -16,15 +16,14 @@ const registerValidation = (data) => {
 	};
 
 	const schema = Joi.object({
-		firstname: Joi.string().min(2).required(),
-		lastname: Joi.string().min(2).required(),
+		name: Joi.string().min(2).required(),
 		email: Joi.string().min(6).required().email(),
 		password: joiPasswordComplex(complexityOptions),
-		passwordConfirm: Joi.ref("password"),
+		passwordConfirm: joiPasswordComplex(complexityOptions),
 		universityDetails: Joi.object({
 			uniName: Joi.string(),
-			studentID: Joi.string(),
-			ilearnPass: Joi.string(),
+			studentID: Joi.string().allow("").optional(),
+			ilearnPass: Joi.string().allow("").optional(),
 		}),
 	});
 

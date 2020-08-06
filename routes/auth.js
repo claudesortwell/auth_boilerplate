@@ -62,11 +62,11 @@ router.post("/register", async (req, res) => {
 
 	// Checking if email is already in the database
 	const emailExist = await User.findOne({ email: req.body.email });
-	if (emailExist) return res.status(400).send("Email already exists");
+	if (emailExist) return res.status(400).json({ message: "Email already exists" });
 
 	// Checking Passwords Match
 	const passwordMatch = req.body.password == req.body.passwordConfirm;
-	if (!passwordMatch) return res.status(400).send("Password does not match");
+	if (!passwordMatch) return res.status(400).json({ message: "Password does not match" });
 
 	// Encrypting the iLearn Password
 	const encryptediLearnPass = encryptString(toString(req.body.universityDetails.ilearnPass));
@@ -77,12 +77,11 @@ router.post("/register", async (req, res) => {
 
 	// Creating Random String
 	var rand = await bcrypt.hash(req.body.email, salt);
-	var link = "https://" + req.get("host") + "/api/user/emailverify?hash=" + rand + "&email=" + req.body.email;
+	var link = "http://localhost:3001/emailverify?hash=" + rand + "&email=" + req.body.email;
 
 	// Create a new user
 	const user = new User({
-		firstname: req.body.firstname,
-		lastname: req.body.lastname,
+		name: req.body.name,
 		email: req.body.email,
 		password: hashedPassword,
 		universityDetails: { uniName: req.body.universityDetails.uniName, studentID: req.body.universityDetails.studentID, ilearnPass: encryptediLearnPass },
@@ -92,10 +91,14 @@ router.post("/register", async (req, res) => {
 	try {
 		await user.save();
 		readHTMLFile("./html/email.html", function (err, html) {
+			if (err) {
+				console.log(err);
+				return;
+			}
 			// Handler bar replacing html items with user content
 			var template = handlebars.compile(html);
 			var replacements = {
-				username: req.body.firstname,
+				username: req.body.name,
 				link: link,
 			};
 			var htmlToSend = template(replacements);
@@ -123,26 +126,26 @@ router.post("/register", async (req, res) => {
 		// Sending Back the user ID
 		res.send({ user: user._id });
 	} catch (err) {
-		res.status(400).send(err);
+		res.status(400).json(err);
 	}
 });
 
 // Verify Email
 router.post("/emailverify", async (req, res) => {
 	// Checking if hash and email exists
-	if (req.query.hash && req.query.email) {
-		const validHash = await bcrypt.compare(req.query.email, req.query.hash);
+	if (req.body.hash && req.body.email) {
+		const validHash = await bcrypt.compare(req.body.email, req.body.hash);
 		if (validHash) {
-			User.findOneAndUpdate({ email: req.query.email }, { $set: { emailCheck: true } }, function (err, doc) {
+			User.findOneAndUpdate({ email: req.body.email }, { $set: { emailCheck: true } }, function (err, doc) {
 				if (err) {
 					console.log("Error updating mongo for email verify");
 				}
 
-				res.sendStatus(200);
+				res.status(200).json({ message: "Successfully verified account" });
 			});
 		}
 	} else {
-		res.status(400).send("Invalid Link");
+		res.status(400).json({ error: "Invalid Link" });
 	}
 });
 

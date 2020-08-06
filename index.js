@@ -12,9 +12,7 @@ const verifyToken = require("./routes/verifyToken");
 dotenv.config();
 
 // Connect to DB
-mongoose.connect(process.env.DB_CONNECT, { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: false }, () =>
-	console.log("Connected to MongoDB")
-);
+mongoose.connect(process.env.DB_CONNECT, { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: false }, () => console.log("Connected to MongoDB"));
 
 // Body Parser to read (Middleware)
 app.use(express.json());
@@ -29,9 +27,9 @@ app.use(function (req, res, next) {
 	if (allowedOrigins.indexOf(origin) > -1) {
 		res.setHeader("Access-Control-Allow-Origin", origin);
 	}
-	// res.header("Access-Control-Allow-Origin", "http://127.0.0.1:8020");
+	res.header("Access-Control-Allow-Origin", "http://localhost:3001");
 	res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
-	res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+	res.header("Access-Control-Allow-Headers", "Content-Type");
 	res.header("Access-Control-Allow-Credentials", true);
 	return next();
 });
